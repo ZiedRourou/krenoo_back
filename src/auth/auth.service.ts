@@ -5,6 +5,7 @@ import { UserService } from 'src/user/user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { UnauthorizedException } from '@nestjs/common';
+import { Response } from 'express';
 
 @Injectable()
 export class AuthService {
@@ -13,24 +14,23 @@ export class AuthService {
         private readonly userService:UserService
     ) {}
 
+    
     async login(loginDto: LoginUserDto) {
       const { email, password } = loginDto;
     
       const existingUser = await this.userService.existingUser(email);
-      console.log('existing user:', existingUser);
     
       if (!existingUser) {
         throw new UnauthorizedException('Utilisateur non trouvé');
       }
     
-      //si desactivé le front reçoit la réponse
       const isPasswordValid = await this.isPasswordValid(password, existingUser.password);
     
       if (!isPasswordValid) {
         throw new UnauthorizedException('Mot de passe incorrect');
       }
     
-      return this.authenticatUser(existingUser.id);
+      return this.authenticateUser(existingUser.id);
     }
     
 
@@ -47,13 +47,33 @@ export class AuthService {
         const createdUser = await this.userService.registerUser(
             email, 
             firstname, 
-            hashPassword
+            hashPassword,
         )
 
-        return this.authenticatUser(createdUser.id)
+        return this.authenticateUser(createdUser.id)
         
     }
 
+    async refreshAccessToken(user : any, res: Response) {
+        try {
+            const tokens = await this.authenticateUser(user.id)
+
+            res.cookie('refresh_token', tokens.refresh_token, {
+                httpOnly: false,
+                secure: false, 
+                sameSite: 'strict',
+                path: '/',
+                maxAge: 7 * 24 * 60 * 60 * 1000, // 7 j
+            });
+            
+            return tokens.access_token
+
+        }catch(err){
+            throw new UnauthorizedException ('erreur refresh')
+        }       
+
+
+    }
 
     private async hashPassword ( password:string) {
         const hashedPassword = await hash(password,10);
@@ -68,9 +88,13 @@ export class AuthService {
         
         return { access_token: 'error' };
     }
-    private async authenticatUser(userId : string) {
-        const payload = {userId}
-        const access_token = await this.jwtService.signAsync(payload) 
-        return { access_token }
+    private async authenticateUser(userId : string) {
+        const payload = {sub : userId}
+        const access_token = await this.jwtService.signAsync(payload, {expiresIn:'3d'}) 
+        const refresh_token = await this.jwtService.signAsync(payload, { expiresIn: '7d' })
+
+        return { access_token , refresh_token}
     }
+
+    
 }

@@ -1,9 +1,8 @@
-import { Body, Controller, Post , Get, UseGuards, Request } from '@nestjs/common';
+import { Body, Controller, Post , Get, UseGuards, Request , Res } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { JwtAuthGuard } from './jwt-aut.guard';
-import { UserService } from 'src/user/user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
+import { AuthGuard } from '@nestjs/passport';
 
 export type AuthBody = {email:string; password: string}
 
@@ -12,27 +11,16 @@ export type AuthBody = {email:string; password: string}
 export class AuthController {
     constructor(
         private readonly authService: AuthService, 
-        private readonly userSevice:UserService
     ){}
     
     @Post('login')
     login(@Body() loginDto: LoginUserDto ) {
-        console.log('Reçu logindto:', loginDto);
-
         const res= this.authService.login(loginDto);
-        console.log('res controller : ' , res);
         
         return res;
     }
 
-    // @Post('login')
-    // async login(@Body() loginDto: LoginUserDto) {
-    //     console.log('Login DTO reçu :', loginDto);
-    //     return { access_token: 'token-test' };
-    // }
-
-
-  
+ 
 
     @Post('register')
     register(@Body() registerDto: CreateUserDto ) {
@@ -40,10 +28,19 @@ export class AuthController {
     }
     
     
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(AuthGuard('jwt'))
     @Get()
-    async authenticateUser(@Request() req ) {
-        return await this.userSevice.getUser(req.user.userId)
+    async authenticateUser(@Request() req ) {       
+        return req.user
+    }
+
+    
+    @UseGuards(AuthGuard('jwtRefresh'))
+    @Post('refresh-token')
+    async refreshToken( @Request() req, @Res({ passthrough: true }) res ) {  
+        console.log("hey");
+              
+        return await this.authService.refreshAccessToken(req.user , res);
     }
 
 

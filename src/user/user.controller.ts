@@ -13,9 +13,9 @@ export class UserController {
 
     @Get('/:userId')
     getUser(@Query('userId') userId:string){
-        return this.userService.getUser({
-            userId,
-        });
+        return this.userService.getUser(userId)
         
     }
+
+    
 }

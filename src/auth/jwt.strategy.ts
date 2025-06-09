@@ -1,19 +1,37 @@
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { UserService } from 'src/user/user.service';
+import { ConfigService } from '@nestjs/config';
 
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor() {
+  constructor(
+    private readonly userService : UserService,
+    private readonly configService : ConfigService
+  ) {
+
+    const JWT_SECRET = configService.get<string>('JWT_SECRET'); // ← POINT-VIRGULE ici
+    if(!JWT_SECRET){
+      throw new UnauthorizedException('JWT undefined')
+    }
+
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: "3cb328b3825f8599de6487b9f89d1ea56033226616849ed473242735c43982fd",
+      secretOrKey: JWT_SECRET,
+    
     });
   }
 
-  async validate(userId: string) {
-    return { userId };
+  async validate(payload : {sub:string}) {
+    const userId= payload.sub
+
+    const user = await this.userService.getUser(userId)
+    if (!user){
+      throw new UnauthorizedException('utilisateur non trouve')
+    }
+    return user;
   }
 }
