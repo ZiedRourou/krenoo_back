@@ -10,8 +10,5 @@ export class CreateUserDto {
   @MinLength(8, {message: "min 8 caractères "})
   password: string;
 
-  @IsString({
-    message: 'vous devez entrer un prénom'
-  })
-  firstname:string;
+
 }

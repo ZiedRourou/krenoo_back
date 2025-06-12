@@ -14,18 +14,18 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwtRefresh')
     private readonly  userService: UserService,
     private readonly  configService: ConfigService
   ) {
-    console.log("yvubin");
-    const JWT_SECRET = configService.get<string>('JWT_SECRET'); 
-    console.log(JWT_SECRET);
-    
-    if(!JWT_SECRET){
-      throw new UnauthorizedException('JWT undefined')
-    }
-    console.log('tqt ' , ExtractJwt.fromHeader('refresh_token'));
+    const JWT_SECRET = configService.get<string>('JWT_SECRET')!; 
+    console.log('jwt refresh');
     
     super({
-      jwtFromRequest: ExtractJwt.fromExtractors([
-        (req: Request) => req?.cookies?.['refresh_token'],
+      jwtFromRequest:  ExtractJwt.fromExtractors([
+        (req: Request) => {
+          const token = req?.cookies?.['refresh_token'];
+          if (!token) {
+            throw new UnauthorizedException('Refresh token manquant');
+          }
+          return token;
+        },
       ]),
       secretOrKey: JWT_SECRET,
       ignoreExpiration: false,

@@ -3,6 +3,7 @@ import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
 import {validateEnv} from '../env.validation'
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [ ConfigModule.forRoot(
@@ -11,7 +12,8 @@ import {validateEnv} from '../env.validation'
       validate:validateEnv,
     }), 
     UserModule, 
-    AuthModule
+    AuthModule, 
+    MailModule,
   ],
   controllers: [],
   providers: [],

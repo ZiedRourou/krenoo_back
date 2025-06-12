@@ -6,6 +6,8 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { UnauthorizedException } from '@nestjs/common';
 import { Response } from 'express';
+import { lostPasswordDto } from './dto/lostPassword-user.dto';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -15,7 +17,7 @@ export class AuthService {
     ) {}
 
     
-    async login(loginDto: LoginUserDto) {
+    async login(loginDto: LoginUserDto , res : Response) {
       const { email, password } = loginDto;
     
       const existingUser = await this.userService.existingUser(email);
@@ -30,48 +32,64 @@ export class AuthService {
         throw new UnauthorizedException('Mot de passe incorrect');
       }
     
-      return this.authenticateUser(existingUser.id);
+      return this.authenticateUser(existingUser.id , res);
     }
     
 
-    async register ( registerUser: CreateUserDto) {
-        const {email , firstname, password } = registerUser
+    async register ( registerUser: CreateUserDto , res: Response) {
+        const {email , password } = registerUser
 
         const existingUser = await this.userService.existingUser(email)
 
         if (existingUser) {
-            throw new Error("already exist")
+            throw new UnauthorizedException("Utilisateur deja existant")
         }
         const hashPassword = await this.hashPassword(password)
 
         const createdUser = await this.userService.registerUser(
             email, 
-            firstname, 
-            hashPassword,
+            hashPassword, 
         )
 
-        return this.authenticateUser(createdUser.id)
+        return this.authenticateUser(createdUser.id , res)
         
     }
 
-    async refreshAccessToken(user : any, res: Response) {
+    async refreshAccessToken(user :any , res: Response) {
         try {
-            const tokens = await this.authenticateUser(user.id)
-
-            res.cookie('refresh_token', tokens.refresh_token, {
-                httpOnly: false,
-                secure: false, 
-                sameSite: 'strict',
-                path: '/',
-                maxAge: 7 * 24 * 60 * 60 * 1000, // 7 j
-            });
+            console.log('userid',user.id);
+     
             
-            return tokens.access_token
+            
+            console.log('try refresh');
+            const resposne = await this.authenticateUser(user.id , res)
+            console.log(resposne);
+            
+            return resposne
 
         }catch(err){
+            console.log('refresh catch');
+            
             throw new UnauthorizedException ('erreur refresh')
         }       
 
+
+    }
+
+    async lostPassword(lostPasswordDto:lostPasswordDto, res:Response){
+        const { email } = lostPasswordDto;
+    
+        const existingUser = await this.userService.existingUser(email);
+      
+        if (!existingUser) {
+          throw new UnauthorizedException('Utilisateur non trouvé');
+        }
+      
+        const hashPassword = await this.hashPassword(randomUUID())
+      
+        
+      
+        return this.authenticateUser(existingUser.id , res);
 
     }
 
@@ -88,10 +106,20 @@ export class AuthService {
         
         return { access_token: 'error' };
     }
-    private async authenticateUser(userId : string) {
+    private async authenticateUser(userId : string , res: Response) {
+        
+        console.log('authenticate');
         const payload = {sub : userId}
-        const access_token = await this.jwtService.signAsync(payload, {expiresIn:'3d'}) 
+        const access_token = await this.jwtService.signAsync(payload, {expiresIn:'2m'}) 
         const refresh_token = await this.jwtService.signAsync(payload, { expiresIn: '7d' })
+
+        res.cookie('refresh_token', refresh_token, {
+            httpOnly: true, //dev 
+            secure: false, //dev
+            sameSite: 'lax',
+            path: '/auth/refresh-token',
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 j
+        });
 
         return { access_token , refresh_token}
     }

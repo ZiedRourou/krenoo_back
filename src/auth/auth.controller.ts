@@ -1,8 +1,13 @@
-import { Body, Controller, Post , Get, UseGuards, Request , Res } from '@nestjs/common';
+import { Body, Controller, Post , Get, UseGuards, Res, Req} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { AuthGuard } from '@nestjs/passport';
+import { JwtAuthGuard } from './jwt-auth.guard';
+import { lostPasswordDto } from './dto/lostPassword-user.dto';
+import { Response, Request } from 'express';
+
+
 
 export type AuthBody = {email:string; password: string}
 
@@ -14,35 +19,37 @@ export class AuthController {
     ){}
     
     @Post('login')
-    login(@Body() loginDto: LoginUserDto ) {
-        const res= this.authService.login(loginDto);
+    login(@Body() loginDto: LoginUserDto , @Res({ passthrough: true }) res :Response ) {
+        console.log(res);
         
-        return res;
+        return this.authService.login(loginDto , res);
     }
 
- 
 
     @Post('register')
-    register(@Body() registerDto: CreateUserDto ) {
-        return this.authService.register(registerDto);
+    register(@Body() registerDto: CreateUserDto , @Res({ passthrough: true }) res : Response ) {
+        return this.authService.register(registerDto , res);
     }
     
     
-    @UseGuards(AuthGuard('jwt'))
+    @UseGuards(JwtAuthGuard)   
     @Get()
-    async authenticateUser(@Request() req ) {       
+    authenticateUser(@Req() req: Request) {   
+        console.log('auth get');
+            
         return req.user
     }
 
     
     @UseGuards(AuthGuard('jwtRefresh'))
     @Post('refresh-token')
-    async refreshToken( @Request() req, @Res({ passthrough: true }) res ) {  
-        console.log("hey");
-              
-        return await this.authService.refreshAccessToken(req.user , res);
+    refreshToken( @Req() req : Request, @Res({ passthrough: true }) res : Response ) {   
+        return this.authService.refreshAccessToken(req.user , res);
     }
 
-
+    @Post('lost-password')
+    lostPassword(@Body() lostPasswordDto: lostPasswordDto , @Res({ passthrough: true }) res : Response ){
+        return this.authService.lostPassword(lostPasswordDto, res)
+    }
 }
 

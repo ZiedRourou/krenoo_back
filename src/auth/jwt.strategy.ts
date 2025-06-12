@@ -12,15 +12,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly configService : ConfigService
   ) {
 
-    const JWT_SECRET = configService.get<string>('JWT_SECRET'); // ← POINT-VIRGULE ici
-    if(!JWT_SECRET){
-      throw new UnauthorizedException('JWT undefined')
-    }
+    const JWT_SECRET = configService.get<string>('JWT_SECRET');
+    
+   console.log('strategy jwt ');
+   
 
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: JWT_SECRET,
+      secretOrKey: JWT_SECRET!,
     
     });
   }
